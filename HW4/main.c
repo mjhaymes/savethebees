@@ -1,4 +1,8 @@
 #include "i2c_master_noint.h"
+#include "ssd1306.h"
+#include "font.h"
+#include <stdio.h>
+#include <sys/attribs.h>  // __ISR macro
 
 // DEVCFG0
 #pragma config DEBUG = OFF // disable debugging
@@ -53,32 +57,42 @@ int main() {
     TRISBbits.TRISB4 = 1; // B4 is an input
     
     i2c_master_setup(); // setup I2C stuff
+    ssd1306_setup();    // setup LCD screen
     
-    setRegister(IODIRA,0x00);       // make all A pins outputs
-    setRegister(IODIRB,0xFF);       // make all B pins inputs
+    setPin(IODIRA,0x00);       // make all MCP A pins outputs
+    setPin(IODIRB,0xFF);       // make all MCP B pins inputs
 
     __builtin_enable_interrupts();
     
-    short int counter=0;
+    char message[50];
+    int answer = 0;
+    int counter = 0;
+    int dt = 0;
     while (1) {
-        // checking if button is pushed or not; making LED turn on/off accordingly
-        switch (readRegister(GPIOB)&0b00000001) {
-            case 0: // if pin B0 is low (the button is pushed)
-                setRegister(OLATA,0b10000000);  // make pin GPA7 output high
-                break;
-            case 1: // if pin B0 is high (the button is not pushed)
-                setRegister(OLATA,0b00000000);  // make pin GPA7 output low
-                break;
-        }
+        _CP0_SET_COUNT(0);
+        sprintf(message,"How much wood could Nick");
+        drawString(message,0,0,1);
         
-        // LED heartbeat --> inverts pin A4 on the PIC every 1000 loops
+        sprintf(message,"Marchuk chuck if Nick");
+        drawString(message,0,8,1);
+        
+        sprintf(message,"Marchuk could chuck wood?");
+        drawString(message,0,16,1);
+        
+        sprintf(message,"Answer:%d",answer);
+        drawString(message,0,25,1);
+
+        ssd1306_update();
+        
+        dt = _CP0_GET_COUNT();
+        
+        sprintf(message,"FPS=%0.2f",(float) 24000000/dt);
+        drawString(message,80,25,1);
+        answer++;
         counter++;
-        switch (counter) {
-            case 1000:
-                // don't wanna blink the heartbeat too fast so we'll wait like 1000
-                // loops through the infinite loop before inverting A4 on the PIC)
-                counter = 0;
-                LATAbits.LATA4 = !LATAbits.LATA4;
+        if (counter==10) {
+            counter=0;
+            LATAbits.LATA4 = !LATAbits.LATA4;
         }
     }
 }

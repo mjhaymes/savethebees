@@ -1,4 +1,9 @@
+#include "ws2812b.h"
+#include "font.h"
 #include "i2c_master_noint.h"
+#include "ssd1306.h"
+#include <stdio.h>
+#include <sys/attribs.h>  // __ISR macro
 
 // DEVCFG0
 #pragma config DEBUG = OFF // disable debugging
@@ -31,6 +36,8 @@
 #pragma config PMDL1WAY = OFF // allow multiple reconfigurations
 #pragma config IOL1WAY = OFF // allow multiple reconfigurations
 
+void readRGB(wsColor * color_array);
+
 int main() {
 
     __builtin_disable_interrupts(); // disable interrupts while initializing things
@@ -52,33 +59,73 @@ int main() {
     LATAbits.LATA4 = 0; // A4 is initially off
     TRISBbits.TRISB4 = 1; // B4 is an input
     
-    i2c_master_setup(); // setup I2C stuff
-    
-    setRegister(IODIRA,0x00);       // make all A pins outputs
-    setRegister(IODIRB,0xFF);       // make all B pins inputs
+    i2c_master_setup();
+    ssd1306_setup();
+    ws2812b_setup();
 
     __builtin_enable_interrupts();
     
-    short int counter=0;
-    while (1) {
-        // checking if button is pushed or not; making LED turn on/off accordingly
-        switch (readRegister(GPIOB)&0b00000001) {
-            case 0: // if pin B0 is low (the button is pushed)
-                setRegister(OLATA,0b10000000);  // make pin GPA7 output high
-                break;
-            case 1: // if pin B0 is high (the button is not pushed)
-                setRegister(OLATA,0b00000000);  // make pin GPA7 output low
-                break;
-        }
+    int numLEDs = 4;
+    wsColor color_array[numLEDs];
+    
+    int i3=0;   // initial hue of LED1
+    int i2=300;  // initial hue of LED2
+    int i1=600; // initial hue of LED3
+    int i0=900; // initial hue of LED4
+    
+    int dt = 1;
+    int LCDcounter = 0;
+    int HBcounter = 0;
+    while (1) {    
+        color_array[0] = HSBtoRGB(i0/10, 1, 1);
+        color_array[1] = HSBtoRGB(i1/10, 1, 1);
+        color_array[2] = HSBtoRGB(i2/10, 1, 1);
+        color_array[3] = HSBtoRGB(i3/10, 1, 1);
         
-        // LED heartbeat --> inverts pin A4 on the PIC every 1000 loops
-        counter++;
-        switch (counter) {
-            case 1000:
-                // don't wanna blink the heartbeat too fast so we'll wait like 1000
-                // loops through the infinite loop before inverting A4 on the PIC)
-                counter = 0;
+        i0 = i0+dt;
+        i1 = i1+dt;
+        i2 = i2+dt;
+        i3 = i3+dt;
+        
+        ws2812b_setColor(color_array, numLEDs);
+        
+        switch (i0) {
+            case 3601:
+                i0=0;
+        }
+        switch (i1) {
+            case 3601:
+                i1=0;
+        }
+        switch (i2) {
+            case 3601:
+                i2=0;
+        }
+        switch (i3) {
+            case 3601:
+                i3=0;
+        }
+        switch (LCDcounter) {
+            case 75:
+                LCDcounter=0;
+                readRGB(color_array);
+                ssd1306_update();
+        }
+        switch (HBcounter) {
+            case 250:
+                HBcounter=0;
                 LATAbits.LATA4 = !LATAbits.LATA4;
         }
+        LCDcounter++;
+        HBcounter++;
+    }
+}
+
+void readRGB(wsColor * color_array) {
+    int k=0;
+    char m[50];
+    for (k=0;k<4;k++) {
+        sprintf(m,"LED%d:   %d   %d   %d   ",k+1,color_array[k].r,color_array[k].g,color_array[k].b);
+        drawString(m,0,k*8,1);
     }
 }
