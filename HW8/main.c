@@ -111,7 +111,7 @@ void setClock() {
         }
         while (PORTBbits.RB15==0) {} // if increment button is still pushed, wait until it isn't
         if (mn>12) {
-            mn=0;
+            mn=1;
         }
     }
     while (PORTBbits.RB12==0) {} // while continue button is still pushed just wait
@@ -125,7 +125,7 @@ void setClock() {
        }
        while (PORTBbits.RB15!=1) {} // if increment button is still pushed, wait until it isn't
        if (dy>31) {
-           dy=0;
+           dy=1;
        }
     }
     while (PORTBbits.RB12==0) {} // while continue button is still pushed just wait
